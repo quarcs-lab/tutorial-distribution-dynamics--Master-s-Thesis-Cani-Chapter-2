@@ -1,0 +1,425 @@
+---
+title: "Regional Poverty Convergence across Districts in Indonesia:A Distribution Dynamics Approach"
+author: "Ragdad Cani Miranti"
+output: 
+  github_document: default
+  
+  html_document:
+    code_download: true
+    df_print: paged
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 4
+    number_sections: true
+    code_folding: "show"
+    theme: "cosmo"
+    highlight: "monochrome"
+  pdf_document: default
+  word_document: default
+  html_notebook:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 4
+    number_sections: true
+    code_folding: "hide"
+    theme: "cosmo"
+    highlight: "monochrome"
+    df_print: "kable"
+always_allow_html: true   
+---
+
+<style>
+h1.title {font-size: 18pt; color: DarkBlue;} 
+body, h1, h2, h3, h4 {font-family: "Palatino", serif;}
+body {font-size: 12pt;}
+/* Headers */
+h1,h2,h3,h4,h5,h6{font-size: 14pt; color: #00008B;}
+body {color: #333333;}
+a, a:hover {color: #8B3A62;}
+pre {font-size: 12px;}
+</style>
+
+Suggested citation: 
+Miranti, Ragdad Cani.(2020). Regional Poverty Convergence across Districts in Indonesia: A Distribution Dynamics Approach <https://rpubs.com/canimiranti/distribution_dynamics_poverty514districts>
+
+
+This work is licensed under the Creative Commons Attribution-Non Commercial-Share Alike 4.0 International License 
+![](License.png) 
+
+# Original data source
+
+Data of Headcount Index (Poverty Rate) are derived from the Indonesia Central Bureau of Statistics (Badan Pusat Statistik Republik of Indonesia). <https://www.bps.go.id/>
+
+Acknowledgment:
+
+Material adapted from multiple sources, in particular from [Magrini (2007).](https://pdfs.semanticscholar.org/eab1/cb89dde0c909898b0a43273377c5dfa73ebc.pdf)
+
+# Libraries
+
+```{r message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(skimr)
+library(kableExtra)    # html tables 
+library(pdfCluster)    # density based clusters
+library(hdrcde)        # conditional density estimation 
+library(plotly)
+
+library(intoo)
+library(barsurf)
+library(bivariate)
+
+library(np)
+library(quantreg)
+
+library(basetheme)
+basetheme("minimal")
+
+library(viridis)
+library(ggpointdensity)
+library(isoband)
+
+#library(MASS)
+library(KernSmooth)
+
+
+# Change the presentation of decimal numbers to 4 and avoid scientific notation
+options(prompt="R> ", digits=4, scipen=7)
+
+```
+
+# Tutorial objectives
+
+- Study the dynamics of univariate densities
+
+- Compute the bandwidth of a density
+
+- Study mobility plots
+
+- Study bi-variate densities
+
+- Study density-based clustering methods
+
+- Study conditional bi-variate densities
+
+
+
+# Import data
+
+```{r message=FALSE, warning=TRUE}
+dat <- read_csv("data/poverty.csv")
+dat <- as.data.frame(dat)
+```
+
+
+# Transform data
+
+
+Since the data is in relative terms, let us rename the variables and add new variables.
+
+
+```{r}
+dat <- dat %>% 
+  mutate(
+    rel_pov2010 = pov2010/mean(pov2010),
+    rel_pov2018 = pov2010/mean(pov2018)
+  )
+dat
+```
+
+
+
+# Descriptive statistics
+
+```{r}
+skim(dat)
+```
+
+
+```{r}
+xy <- dat %>% 
+select(
+pov2010,
+pov2018,
+  ) %>% 
+  mutate(
+    x = pov2010,
+    y = pov2018
+  ) %>% 
+  select(
+    x,
+    y
+  )
+
+```
+
+
+# Univariate dynamics
+
+## Select bandwiths
+
+Select bandwidth based on function `dpik` from the package `KernSmooth`
+
+```{r}
+h_rel_pov2010<- dpik(dat$rel_pov2010)
+h_rel_pov2010
+```
+
+
+```{r}
+h_rel_pov2018 <- dpik(dat$rel_pov2018)
+h_rel_pov2018
+```
+
+## Plot each density
+
+```{r}
+dis_rel_pov2010 <- bkde(dat$rel_pov2010, bandwidth = h_rel_pov2010)
+dis_rel_pov2010 <- as.data.frame(dis_rel_pov2010)
+ggplot(dis_rel_pov2010, aes(x, y)) + geom_line() + 
+  theme_minimal() 
+```
+
+
+```{r}
+dis_rel_pov2018 <- bkde(dat$rel_pov2018, bandwidth = h_rel_pov2018)
+dis_rel_pov2018 <- as.data.frame(dis_rel_pov2018)
+ggplot(dis_rel_pov2018, aes(x, y)) + geom_line() + 
+  theme_minimal() 
+```
+
+
+## Plot both densities
+
+There are two methods for plot both densities,i.e. Kernsmooth and bandwith default of ggplot. I prefer using the gglot ( Method 2).
+
+# Method 2 (ggplot)
+
+Using the bandwidth default of ggplot 
+Manual labels are not yet implemented in the `ggplotly` function
+
+```{r}
+rel_pov2010 <- dat %>% 
+  select(rel_pov2010) %>% 
+  rename(rel_var = rel_pov2010) %>% 
+  mutate(year = 2010)
+```
+
+```{r}
+rel_pov2018 <- dat %>% 
+  select(rel_pov2018) %>% 
+  rename(rel_var = rel_pov2018) %>% 
+  mutate(year = 2018)
+```
+
+```{r}
+rel_pov2010pov2018 <- bind_rows(rel_pov2010, rel_pov2018)
+```
+ 
+```{r}
+rel_pov2010pov2018 <- rel_pov2010pov2018 %>% 
+  mutate(year = as.factor(year))
+head(rel_pov2010pov2018)
+```
+ 
+ 
+
+```{r}
+dis_rel_pov2010pov2018 <- ggplot(rel_pov2010pov2018,aes(x=rel_var, color=year)) +
+  geom_density() + 
+  theme_minimal() 
+dis_rel_pov2010pov2018
+```
+
+
+Using plotly
+
+```{r}
+ggplotly(dis_rel_pov2010pov2018)
+```
+
+
+
+# Bivariate density
+
+## Using Mobility scatterplot
+
+```{r}
+dat %>% 
+  ggplot(aes(x = rel_pov2010, y = rel_pov2018)) +
+  geom_point(alpha=0.5) +
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_hline(yintercept = 1, linetype="dashed") + 
+  geom_vline(xintercept = 1, linetype="dashed") +
+  theme_minimal() +
+  labs(subtitle = "Relative Pov2018",
+       x = "Relative Pov2010",
+       y = "") +
+  theme(text=element_text(family="Palatino")) 
+```
+
+
+Fit a non-linear function
+
+```{r}
+dat %>% 
+  ggplot(aes(x = rel_pov2010, y = rel_pov2018)) +
+  geom_point(alpha=0.5) + 
+  geom_smooth() + 
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_hline(yintercept = 1, linetype="dashed") + 
+  geom_vline(xintercept = 1, linetype="dashed") +
+  theme_minimal() +
+  labs(subtitle = "Relative pov2018",
+       x = "Relative pov2010",
+       y = "") +
+  theme(text=element_text(family="Palatino")) 
+```
+
+Not that the nonlinear fit crosses the 45-degree line two times from above.
+
+## Using the Bivariate package
+
+```{r}
+bivariate <- kbvpdf(dat$rel_pov2010, dat$rel_pov2018, h_rel_pov2010, h_rel_pov2018) 
+```
+
+
+```{r}
+plot(bivariate,
+      xlab="Relative Poverty 2010", 
+      ylab="Relative Poverty 2018")
+abline(a=0, b=1)
+abline(h=1, v=1)
+```
+
+
+```{r}
+plot(bivariate,
+      TRUE,
+      xlab="Relative Poverty 2010", 
+      ylab="Relative Poverty 2018")
+```
+
+
+## Using ggplot (stat_density_2d)
+
+```{r}
+dat %>% 
+  ggplot(aes(x = rel_pov2010, y = rel_pov2018)) +
+  geom_point(color = "lightgray") + 
+  geom_smooth() + 
+  #geom_smooth(method=lm, se=FALSE) + 
+  stat_density_2d() +
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_hline(yintercept = 1, linetype="dashed") + 
+  geom_vline(xintercept = 1, linetype="dashed") +
+  theme_minimal() +
+  labs(subtitle = "Relative pov2018",
+       x = "Relative pov2010",
+       y = "") +
+  theme(text=element_text(family="Palatino")) 
+```
+
+
+
+```{r}
+dat %>% 
+  ggplot(aes(x = rel_pov2010, y = rel_pov2018)) +
+        stat_density_2d(aes(fill = stat(nlevel)), geom = "polygon") + 
+  scale_fill_viridis_c() +
+        geom_abline(aes(intercept = 0, slope = 1)) +
+        geom_hline(yintercept = 1, linetype="dashed") + 
+        geom_vline(xintercept = 1, linetype="dashed") + 
+  theme_minimal() +
+        labs(x = "Relative Poverty Rate 2010",
+             y = "Relative Poverty Rate 2018") +
+        theme(text=element_text(size=8, family="Palatino"))
+```
+
+
+## Using Stochastic Kernel Package
+
+There are two ways of analyzing the use of stochastic kernel package: 1. Contour Plots
+and 2. Surface Plots
+
+### Contour Plots
+
+```{r}
+pov2010pov2018 <- cbind(dat$rel_pov2010, dat$rel_pov2018)
+pov2010pov2018_dis <- bkde2D(pov2010pov2018, bandwidth = c(h_rel_pov2010, h_rel_pov2018)) 
+```
+
+```{r}
+contour(pov2010pov2018_dis$x1,pov2010pov2018_dis$x2,pov2010pov2018_dis$fhat)
+abline(a=0, b=1)
+```
+
+### Surface Plots
+
+```{r}
+plot_ly(x=pov2010pov2018_dis$x1, y=pov2010pov2018_dis$x2, z=pov2010pov2018_dis$fhat) %>% add_surface()
+```
+```{r}
+plot_ly(x=pov2010pov2018_dis$x1, y=pov2010pov2018_dis$x2, z=pov2010pov2018_dis$fhat, type = "contour", contours = list(showlabels = TRUE))  %>%
+  colorbar(title = "Density")
+```
+
+# Conditional density analysis
+
+## Using the `hdrcde` package
+
+```{r}
+pov2010pov2018_cde <- cde(dat$pov2010, dat$pov2018)
+```
+
+Increase the number of intervals to 20
+
+```{r}
+pov2010pov2018_cde2 <- cde(dat$pov2010, dat$pov2018, nxmargin = 20)
+```
+
+
+```{r}
+plot(pov2010pov2018_cde)
+```
+
+
+```{r}
+plot(pov2010pov2018_cde2)
+```
+
+
+High density regions
+
+
+```{r}
+plot(pov2010pov2018_cde, plot.fn="hdr")
+abline(a=0, b=1)
+abline(h=1, v=1)
+```
+
+
+# References
+
+- [Magrini, S. (2007). Analysing convergence through the distribution dynamics approach: why and how?. University Ca'Foscari of Venice, Dept. of Economics Research Paper Series No, 13. ](https://pdfs.semanticscholar.org/eab1/cb89dde0c909898b0a43273377c5dfa73ebc.pdf)
+
+- Mendez C. (2020). Classical sigma and beta convergence analysis in R: Using the REAT 2.1 Package. R Studio/RPubs. Available at https://rpubs.com/quarcs-lab/classical-convergence-reat21
+
+- Mendez C. (2020). Univariate distribution dynamics in R: Using the ggridges package. R Studio/RPubs. Available at https://rpubs.com/quarcs-lab/univariate-distribution-dynamics
+
+- [Mendez, C. (2020) Regional efficiency convergence and efficiency clusters. Asia-Pacific Journal of Regional Science, 1-21.](http://em.rdcu.be/wf/click?upn=lMZy1lernSJ7apc5DgYM8YThSI5bKW06znW3BanO-2FRs-3D_u6a2PqF3vslNNtSRbhxJPcJKxO5EKzOsf0-2FWiizN57d4csF7ReMur5e40TbX48DbSe9kEMCwFpvvFpLcuaVB-2BpdC3fLCbsP0iKcsxIs1dv1yrPsGDCNh5bhgvI8-2F-2Bxwz7upjDgycqPbhObNqkT41uqY3dPiXr5vBoY1xwT88MA3-2FbdJgwoBl1Gnzli13mkmlJj0kqTs-2BllVfCTB356mLjjKR2VBZCUgKbyVpYgu1vXjwTwdOyzd5FTbU8eaRsWyORje7WCPpGEKCUAvbeTCSPa2rfdkmnkQIrsmYBSqfSZ8aaWzHwIkMU3hxbIU6nHGQ) 
+
+- [Mendez, C. (2019). Lack of Global Convergence and the Formation of Multiple Welfare Clubs across Countries: An Unsupervised Machine Learning Approach. Economies, 7(3), 74.](https://www.mdpi.com/2227-7099/7/3/74/pdf)
+
+- Mendez, C. (2019). Overall efficiency, pure technical efficiency, and scale efficiency across provinces in Indonesia 1990 and 2010. R Studio/RPubs. Available at https://rpubs.com/quarcs-lab/efficiency-clusters-indonesia-1990-2010
+
+- [Mendez-Guerra, C. (2018). On the distribution dynamics of human development: Evidence from the metropolitan regions of Bolivia''. Economics Bulletin, 38(4), 2467-2475.](http://www.accessecon.com/Pubs/EB/2018/Volume38/EB-18-V38-I4-P223.pdf)
+
+
+END
