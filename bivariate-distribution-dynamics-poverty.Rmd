@@ -63,7 +63,9 @@ Material adapted from multiple sources, in particular from [Magrini (2007).](htt
 ```{r message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(tidyverse)
+library(readr)
+library (dplyr)
+library(ggplot2)
 library(skimr)
 library(kableExtra)    # html tables 
 library(pdfCluster)    # density based clusters
